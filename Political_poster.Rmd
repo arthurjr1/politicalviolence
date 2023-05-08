@@ -1,0 +1,208 @@
+---
+main_topsize: 0.2 #percent coverage of the poster
+main_bottomsize: 0.1
+#ESSENTIALS
+title: '**Examining the Relationship between Political Violence and Regions in Africa**'
+author:
+  - name: '**Arthur Tartee**'
+    affil: 1
+    main: true
+    email: at7365a@american.edu
+    address: School of International Service, American University
+main_findings:
+  - "Political Violence Events **are common** in **Eastern and Western Africa**."
+  - "Resulting in fatalities"
+primary_colour: "#0063B2FF"
+secondary_colour: "#9CC3D5FF"
+accent_colour: "#cc0000"
+output: 
+  posterdown::posterdown_betterport:
+    self_contained: true
+    pandoc_args: --mathjax
+    number_sections: false
+bibliography: packages.bib
+link-citations: true
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      warning = FALSE,
+                      tidy = FALSE,
+                      message = FALSE,
+                      fig.align = 'center',
+                      out.width = "100%")
+options(knitr.table.format = "html") 
+```
+
+
+# Introduction
+
+Political violence is a pervasive problem in many African countries and has significant implications for democracy, development, and livelihood. This study aims to examine the relationship between political violence and the occurrence of death across four regions in Africa. Understanding the relationship between regions, political violence events, and fatalities is crucial for policymakers and scholars who are interested in promoting peace, stability, and development in Africa. Specifically, we seek to answer the following research question:  
+  - Is there a negative relationship between political violence and regions in Africa?  
+  - Is there a relationship between fatalities and political violence events in African countries?
+
+
+```{r, include=FALSE}
+knitr::write_bib(c('posterdown', 'rmarkdown','pagedown'), 'packages.bib')
+```
+
+
+
+# Data
+
+The data for this study was obtained from the [Armed Conflict Location & Event Data Project (ACLED)](https://acleddata.com/), which provides information on political violence and conflict events in Africa. The ACLED project track the activities of a diverse range of political actors, including governments, rebels, militias, identity groups, political parties, external actors, rioters, protesters, and civilians.
+
+The key variables in the data set include:
+
+  - Country
+  - Region
+  - Date of the event
+  - Type of event (e.g., battle, violence against civilians)
+  - Number of fatalities
+  - Interaction(numeric code indicating the interaction between types of actors). Type of actors include state forces, rebel groups, political militias, identity militias, rioters, protesters, civilian, and external/other forces. The list of actors are categorize from 1-8 to offer a way to distinguish between actors and determine how patterns of activity conform to goals and organizations. As such, the Inter code of a group can change over time. For example, if a rebel group is successful in overthrowing a regime or seceding from a state, its armed agents may then become the armed wing of a political party within the new regime structure (this would be a change in Inter code from 2 to 3).
+
+
+# Analysis
+
+
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(reshape2)
+library(grid)
+library(knitr)
+library(scales)
+library(kableExtra)
+library(stargazer)# regression tables
+library(extrafont)
+library(skimr)
+library(readxl)
+library(viridisLite)
+library(highcharter)
+library(ggThemeAssist)
+
+# load data
+getwd()
+list.files("/Users/Arthur/Documents/Data Analysis")
+
+conflict <- read.csv("acled_cvictims.csv")
+
+df=
+conflict %>% 
+  select(region, country, year, event_date, event_type,
+         interaction, fatalities)
+skim(df, region, country, year, event_date, event_type,
+  interaction, fatalities)
+
+summary(df$fatalities)
+
+t.test(df$fatalities, mu = .734, alternative = 'less')
+
+aov(fatalities~region, df) %>%
+  summary(.)
+```
+
+
+In the graph below `Figure1` shows the type of political violence event that have led to fatalities over the years in Africa. The events are color coded by region to help interpret the type political events that leads to fatalities across the continent.
+
+
+
+```{r Figure1, echo=FALSE, fig.height=6, out.width="80%"}
+df_africa=
+  df %>% filter(region == c("Eastern Africa", "Northern Africa", 
+                          "Southern Africa", "Western Africa")) %>%
+  select(region, country, year, event_date, 
+         event_type,interaction, fatalities)
+
+ggplot(df_africa, aes(y = fatalities, x = event_type)) +
+  geom_point(aes(colour = factor(region))) +
+  geom_smooth(method = 'lm', se = T) +
+  theme_minimal() + 
+  labs(x = "Type of Events", y = "Fatalities") +
+  scale_x_discrete(guide=guide_axis(n.dodge=3)) +
+  theme(axis.title.x = element_text(face = 'bold'),
+        axis.title.y = element_text(face = 'bold'),
+        plot.title = element_text(hjust = 0.5, size = 14, 
+                                  face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12)) + 
+  ggtitle("Political Violence Events across Africa") +
+  labs(caption = "Source: ACLED, 2023") + theme(plot.caption = element_text(family = "serif",
+    size = 10, face = "bold.italic", colour = "gray2"),
+    panel.grid.major = element_line(linetype = "blank"),
+    panel.grid.minor = element_line(linetype = "blank"),
+    axis.title = element_text(family = "serif",
+        face = "bold"), axis.text = element_text(family = "serif",
+        size = 10, colour = "gray2"), axis.text.x = element_text(family = "serif"),
+    axis.text.y = element_text(family = "serif"),
+    plot.title = element_text(family = "serif",
+        size = 15), legend.text = element_text(size = 8.5,
+        family = "serif", colour = "gray2"),
+    legend.title = element_text(face = "bold",
+        family = "serif"), panel.background = element_rect(fill = "gray100"),
+    legend.background = element_rect()) +labs(colour = "Regional Violence") + theme(axis.text = element_text(size = 8),
+    legend.text = element_text(size = 8.8),
+    legend.background = element_rect(fill = NA))
+```
+
+
+```{r regression, fig.height=6, include=FALSE, out.width="70%"}
+
+model1 = lm(fatalities ~ event_type, data = df_africa)
+model2 = lm(fatalities ~ event_type + interaction, data = df_africa)
+model3 = lm(fatalities ~ event_type + interaction + year, data = df_africa)
+```
+
+```{r star, echo=FALSE, results='asis'}
+stargazer(model1, model2, model3, type = 'html', keep.stat = 'n' 
+          )
+        
+```
+
+
+
+
+
+I found a statistically significant difference in political violence events in African countries leading to fatalities. A closer look at the type of events shows that there is significant relationship between the events, the actors involved in the event, and fatalities as a result of the political violence (t = 0.002, df = .000006, p < .01***). 
+
+
+``` {r Figure3, echo=FALSE, fig.height=6, out.width="80%"}
+fat2 =
+  df_africa%>%group_by(region)%>%summarize(Total=sum(fatalities))%>%arrange(desc(Total))
+
+highchart() %>% 
+  hc_chart(type = "column") %>% 
+  hc_title(text = "Fatalities across Africa Regions") %>% 
+  hc_xAxis(categories = fat2$region) %>% 
+  hc_add_series(data = fat2$Total,
+                name = "no of fatalities",colorByPoint = TRUE)%>%
+  hc_credits(enabled = TRUE, text = "Data Source: ACLED ", style = list(fontSize = "12px")) %>%
+  hc_legend(enabled = FALSE)
+
+```
+
+
+
+``` {r Figure4, echo=FALSE, fig.height=6, out.width="80%"}
+
+tab3 =
+  df%>%group_by(region)%>%summarize(Total=sum(fatalities))%>%arrange(desc(Total))
+
+highchart() %>% 
+  hc_chart(type = "column") %>% 
+  hc_title(text = "Global fatalities by region") %>% 
+  hc_xAxis(categories = tab3$region) %>% 
+  hc_add_series(data = tab3$Total,
+                name = "no of fatalities",colorByPoint = TRUE)%>%
+  hc_credits(enabled = TRUE, text = "Data Source: ACLED ", style = list(fontSize = "12px")) %>%
+  hc_legend(enabled = FALSE)
+```
+
+
+
+
+# Finding
+
+The analysis revealed several key findings about political violence and conflict in Africa. The analyses suggest that the most common types of political violence events across the continent that lead to fatalities are battles, explosion/remote violence, and violence against civilians by actors. These events are often associated with a wide range of political actors, including governments, rebels, militias, identity groups, political parties, external actors, and civilians.
+
+The findings suggest that there is a negative relationship between political violence events that results to death in African countries. East and West African regions are significantly impacted by political violence events. Specifically, I found that higher levels of political violence are associated with Africa two largest populated countries, Nigeria and Ethiopia. You can hover over the graphs to see the numbers of fatalities. Egypt which is third in population is did not have high levels of fatalities as a result of political violence. These findings have significant implications for policymakers and scholars who are interested in promoting peace, stability, and development in Africa. The finding suggest that efforts to reduce political violence can save lives, promote democracy and development. 
